@@ -15,7 +15,6 @@ async def produce_from_binance():
     async with websockets.connect(BINANCE_WS_URL) as ws:
         async for msg in ws:
             data = json.loads(msg)
-            # Normalize to your schema
             trade_event = {
                 "exchange": "binance",
                 "symbol": data["s"],

@@ -28,7 +28,6 @@ async def trades_ws(websocket: WebSocket):
     await websocket.accept()
     try:
         while True:
-            # Send fake data every second
             trade = {
                 "symbol": "BTCUSDT",
                 "price": round(64000 + random.random() * 100, 2),
