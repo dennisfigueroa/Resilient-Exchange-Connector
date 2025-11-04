@@ -2,6 +2,15 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio, random, time
 
+conf = {
+    'bootstrap.servers': 'localhost:9092',
+    'group.id': 'demo-consumer',
+    'auto.offset.reset': 'earliest'
+}
+
+c = Consumer(conf)
+c.subscribe(['raw.trades'])
+
 app = FastAPI()
 
 origins = ["http://localhost:5173"]
@@ -13,6 +22,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+latest_price = {"binance": {"price": 188.4, "ts": 1699999999}, "hyperliquid": {"price": 188.6, "ts": 1699999998}}
+
+def update_latest_trades(trade):
+
+     if trade['exchange'] == 'binance':
+        latest_price['binance']['price'] = trade['price']
+
+    elif trade['exchange'] == 'hyperliquid':
+        latest_price['hyperliquid']['price'] = trade['price']
+
+def compute_spread():
+    return (latest_price['binance']['price'] - latest_price['hyperliquid']['price'])
+
+
+async def consume_trades():
+    async for message in c:
+        trade = decode(message)
+        update_latest_trades(trade)
+        compute_spread()
+
+# FastAPI app runs an async consumer in the background.
+
+# It updates prices and spread in memory.
+
+# WebSocket sends spread updates to UI.
 
 @app.get("/")
 def root():

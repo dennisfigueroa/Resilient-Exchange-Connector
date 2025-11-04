@@ -10,13 +10,12 @@
     c = Consumer(conf)
     c.subscribe(['raw.trades'])
 
-    # latest_price = {"binance": {"price": 188.4, "ts": 1699999999}, "hyperliquid": {"price": 188.6, "ts": 1699999998}}
+    latest_price = {"binance": {"price": 188.4, "ts": 1699999999}, "hyperliquid": {"price": 188.6, "ts": 1699999998}}
 
-    #Basically get
-    # async def spread_calculator():
-    #     await asyncio.sleep(1)
-    #     spread = latest_price["binance"]["price"] - latest_price["hyperliquid"]["price"]
-    #     print(f"Spread: {spread}")
+    async def spread_calculator():
+        await asyncio.sleep(1)
+        spread = latest_price["binance"]["price"] - latest_price["hyperliquid"]["price"]
+        print(f"Spread: {spread}")
 
     try:
         while True:
@@ -29,11 +28,11 @@
 
             # trade = json.loads(msg.value().decode("utf-8"))
             
-            if trade['exchange'] == 'binance':
-                latest_price['binance']['price'] = trade['price']
+            # if trade['exchange'] == 'binance':
+            #     latest_price['binance']['price'] = trade['price']
 
-            elif trade['exchange'] == 'hyperliquid':
-                latest_price['hyperliquid']['price'] = trade['price']
+            # elif trade['exchange'] == 'hyperliquid':
+            #     latest_price['hyperliquid']['price'] = trade['price']
 
             # await spread_calculator()
 

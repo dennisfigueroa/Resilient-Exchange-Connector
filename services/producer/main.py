@@ -69,17 +69,17 @@ async def produce_from_hyperliquid():
                 produced_count.inc()
                 print(f"Produced trade: {trade_event}")
 
-async def spread_calculator():
-    while True:
-        await asyncio.sleep(0.1)
-        spread = latest_price["binance"]["price"] - latest_price["hyperliquid"]["price"]
-        print(f"Spread: {spread}")
+# async def spread_calculator():
+#     while True:
+#         await asyncio.sleep(0.1)
+#         spread = latest_price["binance"]["price"] - latest_price["hyperliquid"]["price"]
+#         print(f"Spread: {spread}")
 
 
 async def main():
     task1 = asyncio.create_task(produce_from_binance())
     task2 = asyncio.create_task(produce_from_hyperliquid())
-    task3 = asyncio.create_task(spread_calculator())
+    # task3 = asyncio.create_task(spread_calculator())
 
 
     print("Both tasks started!")
