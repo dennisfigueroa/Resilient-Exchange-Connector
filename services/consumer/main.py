@@ -1,43 +1,61 @@
-    from confluent_kafka import Consumer
-    import json
+from confluent_kafka import Consumer
+import json
+import time
 
+TOPIC = "raw.trades"
+SPREAD_EXCHANGES = ("binance", "hyperliquid")
+STALE_SECONDS = 5
+
+def make_consumer():
     conf = {
         'bootstrap.servers': 'localhost:9092',
         'group.id': 'demo-consumer',
         'auto.offset.reset': 'earliest'
     }
 
-    c = Consumer(conf)
-    c.subscribe(['raw.trades'])
+    consumer = Consumer(conf)
+    consumer.subscribe([TOPIC])
+    return consumer
 
-    # latest_price = {"binance": {"price": 188.4, "ts": 1699999999}, "hyperliquid": {"price": 188.6, "ts": 1699999998}}
 
-    #Basically get
-    # async def spread_calculator():
-    #     await asyncio.sleep(1)
-    #     spread = latest_price["binance"]["price"] - latest_price["hyperliquid"]["price"]
-    #     print(f"Spread: {spread}")
+def update_price(state, trade):
+    state[trade["exchange"]] = {"price": trade["price"], "ts": trade["ts"]}
+    
+def latest_spread(state):
+    lhs, rhs = SPREAD_EXCHANGES
+    first, second = state[lhs], state[rhs]
+    if not first or not second:
+        return None
+    if any(time.time() - leg["ts"] > STALE_SECONDS for leg in (first, second)):
+        return None
+    return first["price"] - second["price"]
+
+def main():
+    consumer = make_consumer()
+    latest = {name: None for name in SPREAD_EXCHANGES}
 
     try:
         while True:
-            msg = c.poll(1.0)
-            if msg is None:
+            msg = consumer.poll(1.0)
+            if not msg:
                 continue
             if msg.error():
-                print("Consumer error: {}".format(msg.error()))
+                print(f"Consumer error: {msg.error()}")
                 continue
 
-            # trade = json.loads(msg.value().decode("utf-8"))
-            
-            if trade['exchange'] == 'binance':
-                latest_price['binance']['price'] = trade['price']
+            trade = json.loads(msg.value())
+            print(f"Received trade: {trade}")
 
-            elif trade['exchange'] == 'hyperliquid':
-                latest_price['hyperliquid']['price'] = trade['price']
+            update_price(latest, trade)
 
-            # await spread_calculator()
+            spread = latest_spread(latest)
+            if spread is not None:
+                print(f"Spread ({SPREAD_EXCHANGES[0]} - {SPREAD_EXCHANGES[1]}): {spread:.2f}")
 
     except KeyboardInterrupt:
         pass
     finally:
-        c.close()
+        consumer.close()
+
+if __name__ == "__main__":
+    main()
