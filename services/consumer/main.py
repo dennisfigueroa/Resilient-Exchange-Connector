@@ -1,8 +1,9 @@
-from confluent_kafka import Consumer
+from confluent_kafka import Consumer, Producer
 import json
 import time
 
 TOPIC = "raw.trades"
+SPREAD_TOPIC = "analytics.spreads"
 SPREAD_EXCHANGES = ("binance", "hyperliquid")
 STALE_SECONDS = 5
 
@@ -17,6 +18,11 @@ def make_consumer():
     consumer.subscribe([TOPIC])
     return consumer
 
+def make_producer():
+    conf = {
+        'bootstrap.servers': 'localhost:9092'
+    }
+    return Producer(conf)
 
 def update_price(state, trade):
     state[trade["exchange"]] = {"price": trade["price"], "ts": trade["ts"]}
@@ -30,8 +36,21 @@ def latest_spread(state):
         return None
     return first["price"] - second["price"]
 
+def publish_spread(producer, symbol, spread):
+    message = json.dumps(
+        {
+            "symbol": symbol,
+            "spread": spread,
+            "exchanges": SPREAD_EXCHANGES,
+            "ts": int(time.time() * 1000),
+        }
+    )
+    producer.produce(SPREAD_TOPIC, message.encode("utf-8"))
+    producer.poll(0)  # trigger delivery callbacks without blocking
+
 def main():
     consumer = make_consumer()
+    producer = make_producer()
     latest = {name: None for name in SPREAD_EXCHANGES}
 
     try:
@@ -51,11 +70,17 @@ def main():
             spread = latest_spread(latest)
             if spread is not None:
                 print(f"Spread ({SPREAD_EXCHANGES[0]} - {SPREAD_EXCHANGES[1]}): {spread:.2f}")
+                symbol = trade.get("symbol")
+                if symbol:
+                    publish_spread(producer, symbol, spread)
+                else:
+                    print("Skipping publish; trade missing symbol")
 
     except KeyboardInterrupt:
         pass
     finally:
         consumer.close()
+        producer.flush()
 
 if __name__ == "__main__":
     main()
