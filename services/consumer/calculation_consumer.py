@@ -26,7 +26,10 @@
                 print("Consumer error: {}".format(msg.error()))
                 continue
 
-            # trade = json.loads(msg.value().decode("utf-8"))
+            trade = json.loads(msg.value().decode("utf-8"))
+
+            await spread_calculator()
+            
             
             # if trade['exchange'] == 'binance':
             #     latest_price['binance']['price'] = trade['price']

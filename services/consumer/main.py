@@ -46,7 +46,7 @@ def publish_spread(producer, symbol, spread):
         }
     )
     producer.produce(SPREAD_TOPIC, message.encode("utf-8"))
-    producer.poll(0)  # trigger delivery callbacks without blocking
+    producer.poll(0)  
 
 def main():
     consumer = make_consumer()

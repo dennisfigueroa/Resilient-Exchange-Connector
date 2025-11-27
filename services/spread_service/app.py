@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+import asyncio 
 
 from .consumer import start_consumer, stop_consumer
 from .state import get_all
