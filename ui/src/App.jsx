@@ -21,7 +21,6 @@ export default function App() {
 
     socket.onclose = () => setStatus("disconnected ⚠️");
 
-    // Clean up when component unmounts
     return () => socket.close();
   }, []);
 
