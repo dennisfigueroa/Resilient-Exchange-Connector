@@ -6,6 +6,9 @@ from typing import List
 import json
 import asyncio
 
+from fastapi.middleware.cors import CORSMiddleware
+
+
 TOPIC = "analytics.spreads"
 KAFKA_CONF = {
     'bootstrap.servers': 'localhost:9092',
@@ -72,6 +75,14 @@ async def lifespan(app: FastAPI):
         pass
 
 app = FastAPI(lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:5173"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 html = """
 <!DOCTYPE html>
