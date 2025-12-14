@@ -4,8 +4,17 @@ import websockets
 from confluent_kafka import Producer
 from prometheus_client import start_http_server, Counter
 
-BINANCE_WS_URL = "wss://stream.binance.com:9443/ws/solusdt@trade"
-HYPERLIQUID_WS_URL = "wss://api.hyperliquid.xyz/ws"
+
+EXCHANGES = {
+    "binance": {
+        "url": "wss://stream.binance.com:9443/ws",
+        "params": ["btcusdt@trade", "ethusdt@trade", "solusdt@trade"]
+    },
+   "hyperliquid": {
+        "url": "wss://api.hyperliquid.xyz/ws",
+        "assets": ["BTC", "ETH", "SOL"] 
+    }
+}
 
 producer = Producer({'bootstrap.servers': 'localhost:9092'})
 produced_count = Counter("produced_trades_total", "Number of trades produced")
@@ -15,9 +24,22 @@ start_http_server(8000)
 latest_price =  {"binance": {"price": 188.4, "ts": 1699999999}, "hyperliquid": {"price": 188.6, "ts": 1699999998}}
 
 async def produce_from_binance():
-    async with websockets.connect(BINANCE_WS_URL) as ws:
+    async with websockets.connect(EXCHANGES["binance"]["url"]) as ws:
+         
+        subscribe_msg = {
+            "method": "SUBSCRIBE",
+            "params": EXCHANGES["binance"]["params"],
+            "id": 1
+        }
+
+        await ws.send(json.dumps(subscribe_msg))
+
         async for msg in ws:
             data = json.loads(msg)
+
+            if "result" in data or "id" in data:
+                continue
+
             trade_event = {
                 "exchange": "binance",
                 "symbol": data["s"],
@@ -36,13 +58,15 @@ async def produce_from_binance():
 
 
 async def produce_from_hyperliquid():
-    async with websockets.connect(HYPERLIQUID_WS_URL) as ws:
-        await ws.send(json.dumps({
-            "method": "subscribe",
-            "subscription": {"type": "trades", "coin": "SOL"}
-        }))
+    async with websockets.connect(EXCHANGES["hyperliquid"]["url"]) as ws:
+        for coin in EXCHANGES["hyperliquid"]["assets"]:
+            await ws.send(json.dumps({
+                "method": "subscribe",
+                "subscription": {"type": "trades", "coin": coin}
+            }))
+
         async for msg in ws:
-            data = json.loads(msg)
+            data = json.loads(msg)  
             if data.get("channel") != "trades":
                 continue
             
@@ -68,12 +92,6 @@ async def produce_from_hyperliquid():
                 producer.poll(0)
                 produced_count.inc()
                 print(f"Produced trade: {trade_event}")
-
-# async def spread_calculator():
-#     while True:
-#         await asyncio.sleep(0.1)
-#         spread = latest_price["binance"]["price"] - latest_price["hyperliquid"]["price"]
-#         print(f"Spread: {spread}")
 
 
 async def main():
