@@ -31,7 +31,7 @@ def match_symbol_name(symbol):
     elif symbol == "BTCUSDT":
         return "BTC"
     elif symbol == "ETHUSDT":
-        return "ETH
+        return "ETH"
     elif symbol == "SOLUSDT":
         return "SOL"
     else:
@@ -39,16 +39,25 @@ def match_symbol_name(symbol):
 
 
 def update_price(state, trade):
-    state[trade["exchange"][match_symbol_name(trade["symbol"])]] = {"price": trade["price"], "ts": trade["ts"]}
-    
-def latest_spread(state):
+    exchange = trade["exchange"]
+    symbol = match_symbol_name(trade["symbol"])
+    if symbol: 
+        state[exchange][symbol] = {"price": trade["price"], "ts": trade["ts"]}
+
+
+def latest_spread(state, symbol):
     lhs, rhs = SPREAD_EXCHANGES
-    first, second = state[lhs], state[rhs]
+
+    first = state[lhs].get(symbol)
+    second = state[rhs].get(symbol)
+
     if not first or not second:
         return None
+
     if any(time.time() - leg["ts"] > STALE_SECONDS for leg in (first, second)):
         return None
     return first["price"] - second["price"]
+
 
 def publish_spread(producer, symbol, spread):
     message = json.dumps(
@@ -81,15 +90,14 @@ def main():
             print(f"Received trade: {trade}")
 
             update_price(latest, trade)
+            symbol = match_symbol_name(trade["symbol"])
+            
+            if symbol:
+                spread = latest_spread(latest, symbol)
 
-            spread = latest_spread(latest)
             if spread is not None:
-                print(f"Spread ({SPREAD_EXCHANGES[0]} - {SPREAD_EXCHANGES[1]}): {spread:.2f}")
-                symbol = trade.get("symbol")
-                if symbol:
+                    print(f"Spread for {symbol} ({SPREAD_EXCHANGES[0]} - {SPREAD_EXCHANGES[1]}): {spread:.2f}")
                     publish_spread(producer, symbol, spread)
-                else:
-                    print("Skipping publish; trade missing symbol")
 
     except KeyboardInterrupt:
         pass
