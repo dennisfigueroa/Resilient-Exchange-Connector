@@ -5,6 +5,7 @@ import time
 TOPIC = "raw.trades"
 SPREAD_TOPIC = "analytics.spreads"
 SPREAD_EXCHANGES = ("binance", "hyperliquid")
+SYMBOLS_TO_TRADE = ["ETH", "BTC", "SOL"]
 STALE_SECONDS = 5
 
 def make_consumer():
@@ -24,8 +25,21 @@ def make_producer():
     }
     return Producer(conf)
 
+def match_symbol_name(symbol):
+    if symbol in SYMBOLS_TO_TRADE:
+        return symbol
+    elif symbol == "BTCUSDT":
+        return "BTC"
+    elif symbol == "ETHUSDT":
+        return "ETH
+    elif symbol == "SOLUSDT":
+        return "SOL"
+    else:
+        return None
+
+
 def update_price(state, trade):
-    state[trade["exchange"]] = {"price": trade["price"], "ts": trade["ts"]}
+    state[trade["exchange"][match_symbol_name(trade["symbol"])]] = {"price": trade["price"], "ts": trade["ts"]}
     
 def latest_spread(state):
     lhs, rhs = SPREAD_EXCHANGES
@@ -51,7 +65,8 @@ def publish_spread(producer, symbol, spread):
 def main():
     consumer = make_consumer()
     producer = make_producer()
-    latest = {name: None for name in SPREAD_EXCHANGES}
+    latest = {name: {coin: None for coin in SYMBOLS_TO_TRADE} for name in SPREAD_EXCHANGES}
+
 
     try:
         while True:
